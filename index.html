@@ -223,14 +223,14 @@ const IMAGES = [
   {name:"Tug-of-war",      w:[40,50,0,0,10]},
   {name:"Stormy seas",     w:[50,30,0,0,20]}
 ];
-const POP = {n:6995, shares:[0.02142843,0.18077988,0.062335447,0.051172031,0.089743771,0.228644548,0.045234647,0.159524329,0.161136917]};
+let POP = {n:6995, shares:[0.021548767312750128,0.18110518320201513,0.06246059761100019,0.05134599949453854,0.08964442728714374,0.2283352820447306,0.045152707690513154,0.1596008520636437,0.1608061832936648]};
 const STEP = 5;
 
 /* ---- math (same as the room vibe report) ---- */
 const norm = a => { const t = a.reduce((s,x)=>s+(+x||0),0); return t ? a.map(x=>(+x||0)/t) : a.map(()=>0); };
 const ROWW = IMAGES.map(im => norm(im.w));
 const mix = shares => { const s = norm(shares); return FEELINGS.map((_,f)=>s.reduce((acc,x,i)=>acc + x*ROWW[i][f],0)); };
-const POPS = norm(POP.shares), POPMIX = mix(POP.shares);
+let POPS = norm(POP.shares), POPMIX = mix(POP.shares);
 function analyze(points){
   const s = norm(points), m = mix(points);
   return { shares:s, index:m.map((x,f)=>x/POPMIX[f]*100), delta:s.map((x,i)=>(x-POPS[i])*100) };
@@ -247,6 +247,17 @@ let CLIENT = store("vibe-client");
 if (!CLIENT){ CLIENT = Math.random().toString(36).slice(2,10)+Date.now().toString(36); store("vibe-client", CLIENT); }
 if (ROOM) $("roomTag").textContent = "· " + ROOM;
 $("popN").textContent = POP.n.toLocaleString();
+/* ---- live benchmark: the save script also serves the totals from the sheet's Data tab ---- */
+if (SAVE_URL && !SAVE_URL.startsWith("__")){
+  fetch(SAVE_URL + "?benchmark=1").then(r => r.json()).then(j => {
+    if (!j || !j.ok || !Array.isArray(j.shares) || j.shares.length !== 9) return;
+    const n = Math.round(Number(j.n)), s = j.shares.map(Number), sum = s.reduce((a,b)=>a+b, 0);
+    if (!(n > 0) || s.some(x => !(x >= 0)) || Math.abs(sum - 1) > 0.05) return;
+    POP = {n, shares:s}; POPS = norm(s); POPMIX = mix(s);
+    $("popN").textContent = n.toLocaleString();
+  }).catch(()=>{});
+}
+
 if (!SAVE_URL || SAVE_URL.startsWith("__")) $("privacy").hidden = true;
 
 /* ---- ballot ---- */
